@@ -19,6 +19,8 @@
         overflow-x: hidden;
       }
       .wrap {
+        position: relative;
+        z-index: 1;
         max-width: 560px;
         margin: 0 auto;
       }
@@ -189,19 +191,33 @@
       #main.show {
         display: block;
       }
-      #ytBg {
+      #ytWrap {
         position: fixed;
-        left: -9999px;
         top: 0;
-        width: 200px;
-        height: 200px;
-        border: 0;
-        opacity: 0.01;
+        left: 0;
+        width: 220px;
+        height: 180px;
+        z-index: 0;
         pointer-events: none;
+        overflow: hidden;
+      }
+      #ytBg {
+        width: 220px;
+        height: 180px;
+        border: 0;
       }
     </style>
   </head>
   <body>
+    <div id="ytWrap">
+      <iframe
+        id="ytBg"
+        src="https://www.youtube.com/embed/katWRjRYfH8?autoplay=1&mute=1&loop=1&playlist=katWRjRYfH8&controls=0&playsinline=1&rel=0&modestbranding=1&enablejsapi=1"
+        allow="autoplay; encrypted-media; fullscreen"
+        playsinline
+        webkit-playsinline
+      ></iframe>
+    </div>
     <div class="wrap">
       <div class="page" id="pg1">
         <img
@@ -286,35 +302,65 @@
       </div>
     </div>
     <script>
-      var ytFrame = null,
-        musicOn = false;
-      function startMusic() {
-        if (ytFrame) return;
-        ytFrame = document.createElement("iframe");
-        ytFrame.id = "ytBg";
-        ytFrame.setAttribute("allow", "autoplay; encrypted-media");
-        ytFrame.src =
-          "https://www.youtube.com/embed/katWRjRYfH8?autoplay=1&loop=1&playlist=katWRjRYfH8&controls=0&playsinline=1&rel=0&modestbranding=1&enablejsapi=1";
-        document.body.appendChild(ytFrame);
-        musicOn = true;
-      }
-      function toggleMusic() {
-        if (!ytFrame) {
-          startMusic();
-          return;
-        }
-        ytFrame.contentWindow.postMessage(
-          '{"event":"command","func":"' + (musicOn ? "pauseVideo" : "playVideo") + '","args":""}',
+      var ytPlayer = null,
+        musicOn = false,
+        audioCtx = null;
+      function ytMsg(func, args) {
+        var frame = document.getElementById("ytBg");
+        if (!frame || !frame.contentWindow) return;
+        frame.contentWindow.postMessage(
+          JSON.stringify({ event: "command", func: func, args: args || [] }),
           "*",
         );
-        musicOn = !musicOn;
       }
+      function unlockAudio() {
+        try {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) {
+            if (!audioCtx) audioCtx = new AC();
+            if (audioCtx.state === "suspended") audioCtx.resume();
+          }
+        } catch (e) {}
+      }
+      function playMusic() {
+        unlockAudio();
+        if (ytPlayer) {
+          if (ytPlayer.unMute) ytPlayer.unMute();
+          if (ytPlayer.setVolume) ytPlayer.setVolume(100);
+          if (ytPlayer.playVideo) ytPlayer.playVideo();
+        }
+        ytMsg("unMute");
+        ytMsg("setVolume", [100]);
+        ytMsg("playVideo");
+        musicOn = true;
+      }
+      function pauseMusic() {
+        if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+        ytMsg("pauseVideo");
+        musicOn = false;
+      }
+      window.onYouTubeIframeAPIReady = function () {
+        ytPlayer = new YT.Player("ytBg", {
+          events: {
+            onReady: function (e) {
+              e.target.mute();
+            },
+          },
+        });
+      };
+      var ytApi = document.createElement("script");
+      ytApi.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(ytApi);
+      document.getElementById("openBtn").addEventListener("pointerdown", unlockAudio);
       document.getElementById("openBtn").addEventListener("click", function () {
         document.getElementById("pg1").classList.add("hidden");
         document.getElementById("main").classList.add("show");
-        startMusic();
+        playMusic();
       });
-      document.getElementById("gramoBtn").addEventListener("click", toggleMusic);
+      document.getElementById("gramoBtn").addEventListener("click", function () {
+        if (musicOn) pauseMusic();
+        else playMusic();
+      });
       var target = new Date("2026-10-09T19:00:00");
       function pad(n) {
         return String(n).padStart(2, "0");
