@@ -286,21 +286,21 @@
       </div>
     </div>
     <script>
-      document.getElementById("openBtn").addEventListener("click", function () {
-        document.getElementById("pg1").classList.add("hidden");
-        document.getElementById("main").classList.add("show");
-      });
       var ytFrame = null,
         musicOn = false;
-      document.getElementById("gramoBtn").addEventListener("click", function () {
+      function startMusic() {
+        if (ytFrame) return;
+        ytFrame = document.createElement("iframe");
+        ytFrame.id = "ytBg";
+        ytFrame.setAttribute("allow", "autoplay; encrypted-media");
+        ytFrame.src =
+          "https://www.youtube.com/embed/katWRjRYfH8?autoplay=1&loop=1&playlist=katWRjRYfH8&controls=0&playsinline=1&rel=0&modestbranding=1&enablejsapi=1";
+        document.body.appendChild(ytFrame);
+        musicOn = true;
+      }
+      function toggleMusic() {
         if (!ytFrame) {
-          ytFrame = document.createElement("iframe");
-          ytFrame.id = "ytBg";
-          ytFrame.setAttribute("allow", "autoplay; encrypted-media");
-          ytFrame.src =
-            "https://www.youtube.com/embed/katWRjRYfH8?autoplay=1&loop=1&playlist=katWRjRYfH8&controls=0&playsinline=1&rel=0&modestbranding=1&enablejsapi=1";
-          document.body.appendChild(ytFrame);
-          musicOn = true;
+          startMusic();
           return;
         }
         ytFrame.contentWindow.postMessage(
@@ -308,7 +308,13 @@
           "*",
         );
         musicOn = !musicOn;
+      }
+      document.getElementById("openBtn").addEventListener("click", function () {
+        document.getElementById("pg1").classList.add("hidden");
+        document.getElementById("main").classList.add("show");
+        startMusic();
       });
+      document.getElementById("gramoBtn").addEventListener("click", toggleMusic);
       var target = new Date("2026-10-09T19:00:00");
       function pad(n) {
         return String(n).padStart(2, "0");
